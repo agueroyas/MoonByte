@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#070916">
+  <meta name="description" content="مرصد قمري تفاعلي ثلاثي الأبعاد — استكشف سطح القمر ومعالمه وإضاءته.">
+  <title>MoonByte · المرصد القمري</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/3d-moon/style.css">
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script defer src="/3d-moon/main.js"></script>
+</head>
+<body>
+  <div class="space-grid" aria-hidden="true"></div>
+  <div id="container" aria-label="مجسم القمر التفاعلي"></div>
+
+  <header class="topbar glass">
+    <a class="brand" href="#" aria-label="MoonByte — المرصد القمري">
+      <img class="brand-logo" src="/3d-moon/NOQTA.jpg" alt="شعار MoonByte نقطة">
+      <span class="brand-divider"></span>
+      <span class="brand-copy"><strong>المرصد القمري</strong><small>ARTEMIS PRISM <b>·</b> 3D EXPLORER</small></span>
+    </a>
+    <div class="top-status"><span class="live-dot"></span><span>استكشاف تفاعلي</span><span class="status-divider"></span><span class="coords" id="coordReadout">0.0° N&nbsp; / &nbsp;0.0° E</span></div>
+    <button class="icon-button" id="resetView" type="button" aria-label="إعادة العرض الافتراضي" title="إعادة العرض الافتراضي">⌖</button>
+  </header>
+
+  <aside class="explore-card glass">
+    <div class="section-kicker"><span>01</span> / نقاط استكشاف</div>
+    <h1>اكتشف <em>القمر</em></h1>
+    <p class="intro">اختر معلمًا قمريًا للانتقال إليه، أو اسحب المجسم لاستكشاف السطح من أي زاوية.</p>
+    <div class="landmark-list" id="landmarks">
+      <button class="landmark-btn selected" data-lat="0" data-lon="0" data-zoom="2.45" data-name="الوجه القريب" type="button"><span class="landmark-icon">◉</span><span class="landmark-label"><b>الوجه القريب</b><small>Near side · العرض الكامل</small></span><span class="landmark-arrow">↗</span></button>
+      <button class="landmark-btn" data-lat="0.67" data-lon="23.47" data-zoom="1.55" data-name="بحر الهدوء" type="button"><span class="landmark-icon">◌</span><span class="landmark-label"><b>بحر الهدوء</b><small>Mare Tranquillitatis · Apollo 11</small></span><span class="landmark-arrow">↗</span></button>
+      <button class="landmark-btn" data-lat="-43.3" data-lon="-11.3" data-zoom="1.5" data-name="فوهة تايكو" type="button"><span class="landmark-icon">✳</span><span class="landmark-label"><b>فوهة تايكو</b><small>Tycho · 43.3° S</small></span><span class="landmark-arrow">↗</span></button>
+      <button class="landmark-btn" data-lat="9.62" data-lon="-20.08" data-zoom="1.5" data-name="فوهة كوبرنيكوس" type="button"><span class="landmark-icon">◍</span><span class="landmark-label"><b>فوهة كوبرنيكوس</b><small>Copernicus · 9.6° N</small></span><span class="landmark-arrow">↗</span></button>
+      <button class="landmark-btn" data-lat="32.8" data-lon="-15.6" data-zoom="1.65" data-name="بحر الأمطار" type="button"><span class="landmark-icon">◒</span><span class="landmark-label"><b>بحر الأمطار</b><small>Mare Imbrium · 32.8° N</small></span><span class="landmark-arrow">↗</span></button>
+    </div>
+    <div class="card-foot"><span>حرك القمر بالسحب</span><span class="key-hint">DRAG <i>·</i> ZOOM</span></div>
+  </aside>
+
+  <div class="feature-label glass"><span class="feature-mark">✦</span><span><small>المعلم الحالي</small><b id="featureName">الوجه القريب</b></span><span class="feature-coords" id="featureCoords">00° 00′</span></div>
+
+  <section class="control-dock glass" aria-label="إعدادات عرض القمر">
+    <div class="dock-heading"><span class="section-kicker"><span>02</span> / إعدادات الرصد</span><button class="reset-link" id="resetControls" type="button">إعادة الضبط <span>↺</span></button></div>
+    <div class="controls-row">
+      <label class="select-control"><span class="control-icon">◈</span><span class="control-label">طبقة السطح</span><select id="viewMode"><option value="natural">القمر الطبيعي</option><option value="telescope">تباين التلسكوب</option><option value="lola">الارتفاعات اللونية</option></select></label>
+      <label class="range-control"><span class="range-title"><span>☼</span> إضاءة الشمس <b id="sunValue">−35°</b></span><input type="range" id="sunAngle" min="-180" max="180" value="-35"></label>
+      <label class="range-control"><span class="range-title"><span>⌁</span> تضاريس الفوهات <b id="reliefValue">45%</b></span><input type="range" id="reliefDepth" min="0" max="100" value="45"></label>
+      <label class="rotate-control" for="autoRotate"><span class="rotate-icon">⟳</span><span><b>دوران تلقائي</b><small>حركة المجسم</small></span><input type="checkbox" id="autoRotate" checked><i class="switch"></i></label>
+    </div>
+  </section>
+
+  <div class="loading" id="loading"><div class="loading-orbit"><i></i></div><strong>تهيئة المرصد</strong><span>جارٍ تحميل نسيج سطح القمر…</span><div class="loading-track"><i></i></div></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div class="version-label">MOONBYTE <span>·</span> LUNAR SURFACE OBSERVATORY</div>
+</body>
+</html>
+
