@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مستكشف موقع الهبوط الآمن - فوهة شاكلتون (NASA Artemis & LRO)</title>
+    <style>
+        :root {
+            --bg-panel: rgba(14, 15, 19, 0.88);
+            --bg-card: rgba(24, 26, 32, 0.9);
+            --border-subtle: rgba(255, 255, 255, 0.1);
+            --border-focus: rgba(255, 255, 255, 0.24);
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --text-muted: #6b7280;
+            --accent-blue: #3b82f6;
+            --status-safe: #10b981;
+            --status-warn: #f59e0b;
+            --status-danger: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: #020204;
+            color: var(--text-primary);
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, Tahoma, sans-serif;
+            overflow: hidden;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
+
+        /* Loading Screen */
+        #loader {
+            position: fixed;
+            inset: 0;
+            background: #050508;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            transition: opacity 0.4s ease;
+        }
+
+        .loader-bar-wrap {
+            width: 240px;
+            height: 3px;
+            background: #1f2937;
+            border-radius: 2px;
+            margin-top: 14px;
+            overflow: hidden;
+        }
+
+        .loader-bar {
+            width: 100%;
+            height: 100%;
+            background: #e5e7eb;
+            animation: pulseLoad 1.2s infinite ease-in-out;
+        }
+
+        @keyframes pulseLoad {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        /* Top Header Bar */
+        #top-header {
+            position: fixed;
+            top: 14px;
+            right: 14px;
+            left: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+            z-index: 10;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .brand-pill, .top-controls {
+            pointer-events: auto;
+            background: var(--bg-panel);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            padding: 8px 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .mission-badge {
+            background: #1f2937;
+            color: #e5e7eb;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 4px;
+            border: 1px solid var(--border-subtle);
+            letter-spacing: 0.3px;
+        }
+
+        .brand-title {
+            font-size: 13.5px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .brand-sub {
+            font-size: 11.5px;
+            color: var(--text-secondary);
+        }
+
+        /* Buttons & Selects */
+        .btn-group {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        button, select {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border: 1px solid var(--border-subtle);
+            padding: 6px 11px;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s;
+        }
+
+        button:hover, select:hover {
+            background: rgba(40, 44, 54, 0.95);
+            border-color: var(--border-focus);
+        }
+
+        button.active {
+            background: #e5e7eb;
+            color: #090a0f;
+            border-color: #ffffff;
+            font-weight: 600;
+        }
+
+        /* Right Mission Telemetry Sidebar */
+        #telemetry-panel {
+            position: fixed;
+            top: 68px;
+            right: 14px;
+            width: 335px;
+            background: var(--bg-panel);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            padding: 16px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            max-height: calc(100vh - 84px);
+            overflow-y: auto;
+        }
+
+        .section-title {
+            font-size: 11.5px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .metric-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 6px;
+            padding: 9px 11px;
+        }
+
+        .metric-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .metric-val {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            font-variant-numeric: tabular-nums;
+            direction: ltr;
+            text-align: right;
+        }
+
+        .data-table {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .data-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .data-key {
+            color: var(--text-secondary);
+        }
+
+        .data-val {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-variant-numeric: tabular-nums;
+            direction: ltr;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 11.5px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        .status-safe {
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .status-warn {
+            background: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .status-danger {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        /* Sliders */
+        .slider-row {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: #e5e7eb;
+            cursor: pointer;
+            height: 5px;
+        }
+
+        /* Left Bottom Inspector & Legend */
+        #bottom-left-panel {
+            position: fixed;
+            bottom: 14px;
+            left: 14px;
+            width: 310px;
+            background: var(--bg-panel);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            padding: 14px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .legend-bar {
+            height: 8px;
+            border-radius: 4px;
+            width: 100%;
+            margin: 4px 0;
+        }
+
+        .legend-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10.5px;
+            color: var(--text-secondary);
+            direction: ltr;
+        }
+
+        /* 3D Waypoint Labels */
+        .waypoint-label {
+            position: fixed;
+            pointer-events: auto;
+            cursor: pointer;
+            background: rgba(12, 13, 17, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            color: #f3f4f6;
+            padding: 4px 9px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            transform: translate(-50%, -130%);
+            white-space: nowrap;
+            transition: border-color 0.15s, background 0.15s;
+            z-index: 5;
+        }
+
+        .waypoint-label:hover {
+            background: rgba(30, 34, 44, 0.95);
+            border-color: #ffffff;
+        }
+
+        .waypoint-dot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #10b981;
+            margin-left: 5px;
+        }
+
+        #drive-hint {
+            font-size: 11px;
+            color: var(--text-secondary);
+            background: rgba(255, 255, 255, 0.04);
+            padding: 7px 10px;
+            border-radius: 5px;
+            border: 1px solid var(--border-subtle);
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+    <div id="loader">
+        <div style="font-size: 14px; font-weight: 600;">جاري بناء نموذج التضاريس الرقمي لفوهة شاكلتون (NASA LOLA DEM)...</div>
+        <div class="loader-bar-wrap"><div class="loader-bar"></div></div>
+    </div>
+
+    <!-- Top Navigation & Mode Bar -->
+    <div id="top-header">
+        <div class="brand-pill">
+            <span class="mission-badge">ARTEMIS III / VIPER</span>
+            <div>
+                <div class="brand-title">مستكشف القطب الجنوبي القمري — فوهة شاكلتون</div>
+                <div class="brand-sub">إحداثيات المركز: 89.9° S, 0.0° E | القطر: 21 كم | العمق: 4.2 كم</div>
+            </div>
+        </div>
+
+        <div class="top-controls">
+            <span style="font-size: 12px; color: var(--text-secondary);">طبقة بيانات ناسا:</span>
+            <select id="dataLayerSelect">
+                <option value="photoreal">السطح الحقيقي (LROC Photorealistic)</option>
+                <option value="thermal">خريطة الحرارة (Diviner: 40K - 220K)</option>
+                <option value="slope">الميل وأمان الهبوط (LOLA Slope Hazard)</option>
+                <option value="ice">الظل الدائم والجليد المائي (PSR & Water Ice)</option>
+            </select>
+
+            <span style="font-size: 12px; color: var(--text-secondary); margin-right: 6px;">الكاميرا:</span>
+            <div class="btn-group">
+                <button class="cam-btn active" data-cam="orbit">حرة (3D Orbit)</button>
+                <button class="cam-btn" data-cam="follow">تتبع الروفر</button>
+                <button class="cam-btn" data-cam="pov">كاميرا الروفر (MastCam)</button>
+                <button class="cam-btn" data-cam="top">مسقط رأسي</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right NASA Telemetry & Controls Panel -->
+    <div id="telemetry-panel">
+        <div>
+            <div class="section-title">
+                <span>بيانات فوهة شاكلتون (LRO / Diviner)</span>
+                <span style="font-size: 10px; color: #10b981;">● بث حي</span>
+            </div>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">أدنى حرارة (القاع المظلم)</div>
+                    <div class="metric-val">-233°C (40K)</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">أقصى حرارة (الحواف المضيئة)</div>
+                    <div class="metric-val">-53°C (220K)</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">نسبة الظل الدائم (PSR)</div>
+                    <div class="metric-val">16.42%</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">تركيز جليد الماء (القاع)</div>
+                    <div class="metric-val">~1.8 wt% H₂O</div>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <div class="section-title">حالة مركبة الاستكشاف (VIPER LTV)</div>
+            <div class="data-table">
+                <div class="data-row">
+                    <span class="data-key">حالة النظام:</span>
+                    <span id="rover-status-badge" class="status-badge status-safe">جاري الاستكشاف الآمن</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-key">وضع القيادة:</span>
+                    <div class="btn-group">
+                        <button id="mode-auto" class="active" style="padding: 3px 8px; font-size: 11px;">مسار الحافة الآلي</button>
+                        <button id="mode-manual" style="padding: 3px 8px; font-size: 11px;">يدوي / بالنقر</button>
+                    </div>
+                </div>
+                <div class="data-row">
+                    <span class="data-key">ارتفاع موقع الروفر:</span>
+                    <span id="rover-elev" class="data-val">+1240 m</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-key">زاوية ميل السطح (Slope):</span>
+                    <span id="rover-slope" class="data-val">4.2°</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-key">درجة حرارة السطح تحت الروفر:</span>
+                    <span id="rover-temp" class="data-val">-68°C (205K)</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-key">شحن الألواح الشمسية:</span>
+                    <span id="rover-power" class="data-val">94% (مستقر)</span>
+                </div>
+            </div>
+            <div id="drive-hint" style="margin-top: 8px;">
+                💡 يمكنك النقر في أي مكان على التضاريس لإرسال الروفر إليه، أو استخدام أزرار <b>W A S D</b> / الأسهم للقيادة اليدوية.
+            </div>
+        </div>
+
+        <div>
+            <div class="section-title">البيئة والإضاءة القمرية</div>
+            <div class="slider-row">
+                <div class="slider-header">
+                    <span>زاوية دوران الشمس (Azimuth)</span>
+                    <span id="sunAzVal" style="direction:ltr;">45°</span>
+                </div>
+                <input type="range" id="sunAzimuth" min="-180" max="180" value="45">
+            </div>
+            <div class="slider-row" style="margin-top: 8px;">
+                <div class="slider-header">
+                    <span>ارتفاع الشمس عن الأفق (Elevation)</span>
+                    <span id="sunElVal" style="direction:ltr;">4.5°</span>
+                </div>
+                <input type="range" id="sunElevation" min="1.2" max="25" step="0.2" value="4.5">
+            </div>
+            <div class="slider-row" style="margin-top: 8px;">
+                <div class="slider-header">
+                    <span>كشافات الروفر الأمامية (LED)</span>
+                    <input type="checkbox" id="roverLightsToggle" checked style="cursor:pointer;">
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <div class="section-title">معالم الهبوط المعتمدة (NASA Sites)</div>
+            <div class="btn-group" style="flex-wrap: wrap;">
+                <button class="site-btn" data-x="0" data-z="-22">حافة أرتميس 3 (Connecting Ridge)</button>
+                <button class="site-btn" data-x="0" data-z="0">قاع شاكلتون المظلم (PSR Core)</button>
+                <button class="site-btn" data-x="23" data-z="8">قمة مالابيرت (Relay Peak)</button>
+                <button class="site-btn" data-x="-21" data-z="12">حقل الفوهات الثانوية</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom-Left Surface Raycast Inspector -->
+    <div id="bottom-left-panel">
+        <div class="section-title" style="margin-bottom: 2px;">
+            <span>محلل التضاريس الفوري (مؤشر الماوس)</span>
+            <span id="cursor-safety" class="status-badge status-safe">نطاق آمن</span>
+        </div>
+        <div class="data-table">
+            <div class="data-row">
+                <span class="data-key">الإحداثيات القمرية:</span>
+                <span id="inspect-coords" class="data-val">89.88° S, 12.4° E</span>
+            </div>
+            <div class="data-row">
+                <span class="data-key">الارتفاع الطبوغرافي (LOLA):</span>
+                <span id="inspect-elev" class="data-val">+1120 m</span>
+            </div>
+            <div class="data-row">
+                <span class="data-key">زاوية الانحدار المحلي:</span>
+                <span id="inspect-slope" class="data-val">5.4°</span>
+            </div>
+            <div class="data-row">
+                <span class="data-key">الحرارة السطحية (Diviner):</span>
+                <span id="inspect-temp" class="data-val">-74°C (199K)</span>
+            </div>
+        </div>
+        <div id="legend-container" style="display:none;">
+            <div id="legend-title" style="font-size: 11px; color: var(--text-secondary);">مفتاح الخريطة:</div>
+            <div id="legend-gradient" class="legend-bar"></div>
+            <div id="legend-labels" class="legend-labels"></div>
+        </div>
+    </div>
+
+    <!-- 3D Waypoint DOM Overlay Container -->
+    <div id="waypoints-layer"></div>
+
+    <div id="canvas-container"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        /**
+         * NASA Shackleton Crater & Lunar South Pole 3D Mission Simulator
+         * High-resolution LOLA DEM physics, articulated VIPER rover, Diviner thermal layers, and interactive telemetry.
+         */
+
+        const WORLD_SIZE = 120;
+        const MESH_SEGMENTS = 320; // 320x320 high-detail DEM grid
+        const CRATER_RADIUS = 22.0; // Represents 21 km Shackleton Crater
+
+        let scene, camera, renderer, controls;
+        let terrainMesh, terrainGeo, terrainMat;
+        let sunLight, earthLight, roverSpotLight1;
+        let roverGroup, roverWheels = [], solarPanelGroup, mastGroup, targetMarkerMesh;
+        let wheelTrackGeo, wheelTrackPositions = [], maxTracks = 600;
+
+        // Simulation state
+        let cameraMode = 'orbit'; // 'orbit' | 'follow' | 'pov' | 'top'
+        let driveMode = 'auto';   // 'auto' | 'manual'
+        let activeDataLayer = 'photoreal'; // 'photoreal' | 'thermal' | 'slope' | 'ice'
+        let sunAzimuthDeg = 45;
+        let sunElevationDeg = 4.5;
+
+        // Rover Kinematics
+        let roverState = {
+            x: 0,
+            z: -CRATER_RADIUS * 1.02,
+            y: 0,
+            heading: 0,
+            speed: 0,
+            autoAngle: -Math.PI / 2,
+            targetX: null,
+            targetZ: null,
+            wheelRot: 0
+        };
+
+        const keys = { w: false, a: false, s: false, d: false };
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        // Precomputed vertex datasets for instant layer switching
+        let vertexColorsPhotoreal, vertexColorsThermal, vertexColorsSlope, vertexColorsIce;
+
+        // Key Lunar South Pole Landmarks
+        const landmarks = [
+            { name: "حافة الهبوط أرتميس 3 (Connecting Ridge)", x: 0, z: -22.5, desc: "إضاءة شمسية 86% من العام - موقع مثالي" },
+            { name: "قاع شاكلتون المظلم (PSR Cold Trap - 40K)", x: 0, z: 0, desc: "ظل دائم 100% - مستودع جليد مائي" },
+            { name: "مرتفعات مالابيرت (Mons Malapert Ridge)", x: 24, z: 8, desc: "نقطة اتصال مباشر مع كوكب الأرض" },
+            { name: "حافة شاكلتون الشرقية (Crater Rim Crest)", x: -22.2, z: 4, desc: "انحدار داخلي 30.5°" }
+        ];
+        let landmarkElements = [];
+
+        init();
+        animate();
+
+        function init() {
+            const container = document.getElementById('canvas-container');
+
+            // 1. Scene & Renderer
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x020205);
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2500);
+            camera.position.set(26, 22, -46);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.05;
+            container.appendChild(renderer.domElement);
+
+            // 2. OrbitControls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI * 0.49;
+            controls.minDistance = 2.5;
+            controls.maxDistance = 140;
+            controls.target.set(0, 1, -12);
+
+            // 3. Authentic Lunar South Pole Low-Angle Sun Lighting
+            const ambient = new THREE.AmbientLight(0x1b2234, 0.22);
+            scene.add(ambient);
+
+            earthLight = new THREE.DirectionalLight(0x5577aa, 0.18);
+            earthLight.position.set(-80, 25, -120);
+            scene.add(earthLight);
+
+            sunLight = new THREE.DirectionalLight(0xfff9ee, 2.65);
+            sunLight.castShadow = true;
+            sunLight.shadow.mapSize.width = 2048;
+            sunLight.shadow.mapSize.height = 2048;
+            sunLight.shadow.camera.near = 10;
+            sunLight.shadow.camera.far = 260;
+            const d = 68;
+            sunLight.shadow.camera.left = -d;
+            sunLight.shadow.camera.right = d;
+            sunLight.shadow.camera.top = d;
+            sunLight.shadow.camera.bottom = -d;
+            sunLight.shadow.bias = -0.0005;
+            scene.add(sunLight);
+            updateSunLightPosition();
+
+            // 4. Build High-Resolution Shackleton Crater DEM & Surface Textures
+            buildShackletonTerrain();
+
+            // 5. Build Detailed Articulated NASA VIPER Rover + Wheel Tracks
+            buildNasaRover();
+            buildWheelTracksSystem();
+
+            // 6. Build Deep Space Sky (Stars + Low-Horizon Earth)
+            buildLunarSky();
+
+            // 7. Create 3D Landmarks & UI Bindings
+            createLandmarkMarkers();
+            setupUIEvents();
+
+            // Hide loading screen
+            setTimeout(() => {
+                const loader = document.getElementById('loader');
+                loader.style.opacity = '0';
+                setTimeout(() => loader.style.display = 'none', 400);
+            }, 300);
+        }
+
+        /**
+         * Deterministic 2D & Multi-Octave Noise for Authentic Lunar Highlands & Craters
+         */
+        function hash2(x, z) {
+            const h = Math.sin(x * 127.1 + z * 311.7) * 43758.5453123;
+            return h - Math.floor(h);
+        }
+
+        function valueNoise(x, z) {
+            const ix = Math.floor(x);
+            const iz = Math.floor(z);
+            const fx = x - ix;
+            const fz = z - iz;
+            const ux = fx * fx * (3.0 - 2.0 * fx);
+            const uz = fz * fz * (3.0 - 2.0 * fz);
+
+            const a = hash2(ix, iz);
+            const b = hash2(ix + 1, iz);
+            const c = hash2(ix, iz + 1);
+            const d = hash2(ix + 1, iz + 1);
+
+            return a + (b - a) * ux + (c - a) * uz + (a - b - c + d) * ux * uz;
+        }
+
+        function fbm(x, z, octaves) {
+            let val = 0;
+            let amp = 0.5;
+            let freq = 1.0;
+            for (let i = 0; i < octaves; i++) {
+                val += amp * (valueNoise(x * freq, z * freq) - 0.5);
+                freq *= 2.07;
+                amp *= 0.48;
+            }
+            return val;
+        }
+
+        // Secondary impact craters catalog around Shackleton
+        const secondaryCraters = [
+            { x: -28, z: -18, r: 6.2, depth: 1.35 },
+            { x: 26,  z: -20, r: 5.0, depth: 1.1 },
+            { x: -24, z: 22,  r: 7.5, depth: 1.55 },
+            { x: 29,  z: 24,  r: 5.8, depth: 1.25 },
+            { x: 14,  z: -32, r: 4.2, depth: 0.9 },
+            { x: -12, z: 31,  r: 4.8, depth: 1.05 },
+            { x: -35, z: 2,   r: 5.2, depth: 1.15 },
+            { x: 36,  z: -4,  r: 4.5, depth: 0.95 },
+            { x: 4,   z: -22.5, r: 1.8, depth: 0.35 },
+            { x: -6,  z: -21.8, r: 1.5, depth: 0.3 },
+            { x: 19,  z: 10,  r: 2.6, depth: 0.55 },
+            { x: -18, z: -8,  r: 2.2, depth: 0.48 }
+        ];
+
+        /**
+         * Exact Mathematical Model of Shackleton Crater LOLA DEM
+         */
+        function getTerrainHeight(x, z) {
+            const r = Math.sqrt(x * x + z * z);
+            let h = 0;
+
+            // 1. Primary Shackleton Crater Profile
+            if (r < CRATER_RADIUS) {
+                const normR = r / CRATER_RADIUS;
+                if (normR < 0.34) {
+                    const floorWave = Math.cos((normR / 0.34) * Math.PI * 0.5) * 0.22;
+                    h = -6.2 + floorWave;
+                } else {
+                    const wallT = (normR - 0.34) / 0.66;
+                    const smoothWall = wallT * wallT * (3.0 - 2.0 * wallT);
+                    h = -6.2 + smoothWall * 8.65;
+                }
+            } else {
+                const outR = (r - CRATER_RADIUS) / 18.0;
+                const rimDecay = Math.exp(-outR * 1.45) * 2.45;
+                h = rimDecay;
+            }
+
+            // 2. South Pole Massifs (Connecting Ridge & Malapert Massif)
+            const ridgeFactor = Math.exp(-Math.pow((x + 4) * 0.045, 2) - Math.pow((z + 27) * 0.06, 2)) * 2.1;
+            const malapertFactor = Math.exp(-Math.pow((x - 28) * 0.05, 2) - Math.pow((z - 10) * 0.05, 2)) * 3.4;
+            h += ridgeFactor + malapertFactor;
+
+            // 3. Multi-octave Lunar Regolith & Highland Ridges
+            const macroNoise = fbm(x * 0.045, z * 0.045, 4) * 2.4;
+            const mesoNoise = fbm(x * 0.16 + 11.3, z * 0.16 + 7.1, 3) * 0.65;
+            const microNoise = fbm(x * 0.65, z * 0.65, 2) * 0.14;
+
+            const rimPathMask = 1.0 - Math.exp(-Math.pow(r - CRATER_RADIUS * 1.02, 2) * 0.35) * 0.55;
+            h += (macroNoise + mesoNoise) * rimPathMask + microNoise;
+
+            // 4. Secondary Impact Craters
+            for (let i = 0; i < secondaryCraters.length; i++) {
+                const c = secondaryCraters[i];
+                const dx = x - c.x;
+                const dz = z - c.z;
+                const cr = Math.sqrt(dx * dx + dz * dz);
+                if (cr < c.r * 1.45) {
+                    const cn = cr / c.r;
+                    if (cn < 1.0) {
+                        const bowl = (cn * cn - 1.0) * c.depth;
+                        h += bowl;
+                    } else {
+                        const rim = Math.exp(-Math.pow((cn - 1.0) * 3.2, 2)) * (c.depth * 0.24);
+                        h += rim;
+                    }
+                }
+            }
+
+            return h;
+        }
+
+        function getTerrainNormal(x, z) {
+            const eps = 0.25;
+            const hL = getTerrainHeight(x - eps, z);
+            const hR = getTerrainHeight(x + eps, z);
+            const hD = getTerrainHeight(x, z - eps);
+            const hU = getTerrainHeight(x, z + eps);
+            return new THREE.Vector3(hL - hR, 2.0 * eps, hD - hU).normalize();
+        }
+
+        function getSlopeDegrees(x, z) {
+            const n = getTerrainNormal(x, z);
+            return Math.acos(Math.max(-1, Math.min(1, n.y))) * (180 / Math.PI);
+        }
+
+        /**
+         * Computes authentic Diviner Lunar Radiometer Temperature in Kelvin (40K to 220K)
+         */
+        function getSurfaceTemperatureKelvin(x, z, y, slopeDeg) {
+            const r = Math.sqrt(x * x + z * z);
+            if (r < CRATER_RADIUS * 0.86 && y < -0.5) {
+                const depthNorm = Math.max(0, Math.min(1, (y + 6.2) / 5.7));
+                return Math.round(40 + depthNorm * 48);
+            }
+            const n = getTerrainNormal(x, z);
+            const sunDir = sunLight ? sunLight.position.clone().normalize() : new THREE.Vector3(0.7, 0.08, 0.7).normalize();
+            const insolation = Math.max(0, n.dot(sunDir));
+            const elevBonus = Math.max(0, (y + 2.0) / 6.0) * 35;
+            return Math.min(220, Math.max(40, Math.round(92 + insolation * 95 + elevBonus)));
+        }
+
+        function buildShackletonTerrain() {
+            terrainGeo = new THREE.PlaneGeometry(WORLD_SIZE, WORLD_SIZE, MESH_SEGMENTS, MESH_SEGMENTS);
+            terrainGeo.rotateX(-Math.PI / 2);
+
+            const pos = terrainGeo.attributes.position;
+            const count = pos.count;
+
+            vertexColorsPhotoreal = new Float32Array(count * 3);
+            vertexColorsThermal = new Float32Array(count * 3);
+            vertexColorsSlope = new Float32Array(count * 3);
+            vertexColorsIce = new Float32Array(count * 3);
+
+            for (let i = 0; i < count; i++) {
+                const x = pos.getX(i);
+                const z = pos.getZ(i);
+                const y = getTerrainHeight(x, z);
+                pos.setY(i, y);
+            }
+
+            terrainGeo.computeVertexNormals();
+            const normals = terrainGeo.attributes.normal;
+
+            for (let i = 0; i < count; i++) {
+                const x = pos.getX(i);
+                const y = pos.getY(i);
+                const z = pos.getZ(i);
+                const ny = normals.getY(i);
+                const slopeDeg = Math.acos(Math.max(-1, Math.min(1, ny))) * (180 / Math.PI);
+                const r = Math.sqrt(x * x + z * z);
+
+                // 1. Photorealistic Lunar Regolith Albedo
+                const grain = fbm(x * 0.8, z * 0.8, 2) * 0.06;
+                const slopeBright = Math.min(0.14, (slopeDeg / 35.0) * 0.14);
+                const baseGray = Math.max(0.18, Math.min(0.78, 0.42 + (y / 14.0) * 0.16 + grain + slopeBright));
+                vertexColorsPhotoreal[i * 3]     = baseGray * 1.01;
+                vertexColorsPhotoreal[i * 3 + 1] = baseGray * 1.0;
+                vertexColorsPhotoreal[i * 3 + 2] = baseGray * 0.97;
+
+                // 2. Diviner Thermal Map (40K -> 220K)
+                const tempK = getSurfaceTemperatureKelvin(x, z, y, slopeDeg);
+                const tNorm = Math.max(0, Math.min(1, (tempK - 40) / (220 - 40)));
+                const tCol = getThermalColor(tNorm);
+                vertexColorsThermal[i * 3]     = tCol[0];
+                vertexColorsThermal[i * 3 + 1] = tCol[1];
+                vertexColorsThermal[i * 3 + 2] = tCol[2];
+
+                // 3. LOLA Slope & Landing Hazard Map
+                let sCol;
+                if (slopeDeg < 9.5) {
+                    sCol = [0.12, 0.72, 0.45];
+                } else if (slopeDeg < 18.5) {
+                    const t = (slopeDeg - 9.5) / 9.0;
+                    sCol = [0.12 + t * 0.82, 0.72 - t * 0.12, 0.45 - t * 0.35];
+                } else {
+                    const t = Math.min(1, (slopeDeg - 18.5) / 15.0);
+                    sCol = [0.94, 0.55 * (1 - t) + 0.15, 0.12];
+                }
+                vertexColorsSlope[i * 3]     = sCol[0];
+                vertexColorsSlope[i * 3 + 1] = sCol[1];
+                vertexColorsSlope[i * 3 + 2] = sCol[2];
+
+                // 4. PSR & Hydrogen / Water Ice Concentration
+                if (r < CRATER_RADIUS * 0.78 && y < -2.2) {
+                    const iceIntensity = Math.max(0.2, Math.min(1.0, (-2.2 - y) / 4.0));
+                    vertexColorsIce[i * 3]     = 0.08 * (1 - iceIntensity);
+                    vertexColorsIce[i * 3 + 1] = 0.55 + iceIntensity * 0.38;
+                    vertexColorsIce[i * 3 + 2] = 0.85 + iceIntensity * 0.15;
+                } else {
+                    vertexColorsIce[i * 3]     = baseGray * 0.75;
+                    vertexColorsIce[i * 3 + 1] = baseGray * 0.77;
+                    vertexColorsIce[i * 3 + 2] = baseGray * 0.82;
+                }
+            }
+
+            terrainGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(vertexColorsPhotoreal), 3));
+
+            const microMaps = generateRegolithDetailMaps();
+
+            terrainMat = new THREE.MeshStandardMaterial({
+                vertexColors: true,
+                map: microMaps.albedoMap,
+                normalMap: microMaps.normalMap,
+                normalScale: new THREE.Vector2(1.35, 1.35),
+                roughness: 0.94,
+                metalness: 0.02
+            });
+
+            terrainMesh = new THREE.Mesh(terrainGeo, terrainMat);
+            terrainMesh.receiveShadow = true;
+            terrainMesh.castShadow = true;
+            scene.add(terrainMesh);
+        }
+
+        function getThermalColor(t) {
+            const stops = [
+                { p: 0.0,  c: [0.16, 0.12, 0.58] },
+                { p: 0.25, c: [0.05, 0.55, 0.85] },
+                { p: 0.55, c: [0.18, 0.78, 0.38] },
+                { p: 0.80, c: [0.96, 0.78, 0.12] },
+                { p: 1.0,  c: [0.92, 0.20, 0.15] }
+            ];
+            for (let i = 0; i < stops.length - 1; i++) {
+                if (t >= stops[i].p && t <= stops[i + 1].p) {
+                    const f = (t - stops[i].p) / (stops[i + 1].p - stops[i].p);
+                    return [
+                        stops[i].c[0] + (stops[i + 1].c[0] - stops[i].c[0]) * f,
+                        stops[i].c[1] + (stops[i + 1].c[1] - stops[i].c[1]) * f,
+                        stops[i].c[2] + (stops[i + 1].c[2] - stops[i].c[2]) * f
+                    ];
+                }
+            }
+            return [0.92, 0.20, 0.15];
+        }
+
+        function generateRegolithDetailMaps() {
+            const size = 512;
+            const albedoCanvas = document.createElement('canvas');
+            const normCanvas = document.createElement('canvas');
+            albedoCanvas.width = normCanvas.width = size;
+            albedoCanvas.height = normCanvas.height = size;
+
+            const aCtx = albedoCanvas.getContext('2d');
+            const nCtx = normCanvas.getContext('2d');
+            const aImg = aCtx.createImageData(size, size);
+            const nImg = nCtx.createImageData(size, size);
+
+            const hField = new Float32Array(size * size);
+
+            for (let y = 0; y < size; y++) {
+                for (let x = 0; x < size; x++) {
+                    const n1 = hash2(x * 0.5, y * 0.5);
+                    const n2 = hash2(x * 0.15, y * 0.15);
+                    const val = 0.84 + (n1 - 0.5) * 0.14 + (n2 - 0.5) * 0.12;
+                    hField[y * size + x] = val;
+
+                    const idx = (y * size + x) * 4;
+                    const c = Math.floor(Math.max(180, Math.min(255, val * 255)));
+                    aImg.data[idx] = aImg.data[idx + 1] = aImg.data[idx + 2] = c;
+                    aImg.data[idx + 3] = 255;
+                }
+            }
+            aCtx.putImageData(aImg, 0, 0);
+
+            const strength = 4.0;
+            for (let y = 0; y < size; y++) {
+                const yU = ((y - 1 + size) % size) * size;
+                const yM = y * size;
+                const yD = ((y + 1) % size) * size;
+                for (let x = 0; x < size; x++) {
+                    const xL = (x - 1 + size) % size;
+                    const xR = (x + 1) % size;
+
+                    const dX = (hField[yU + xR] + 2 * hField[yM + xR] + hField[yD + xR]) -
+                               (hField[yU + xL] + 2 * hField[yM + xL] + hField[yD + xL]);
+                    const dY = (hField[yD + xL] + 2 * hField[yD + x] + hField[yD + xR]) -
+                               (hField[yU + xL] + 2 * hField[yU + x] + hField[yU + xR]);
+                    const dZ = 1.0 / strength;
+                    const inv = 1.0 / Math.sqrt(dX * dX + dY * dY + dZ * dZ);
+
+                    const p = (yM + x) * 4;
+                    nImg.data[p]     = (dX * inv * 0.5 + 0.5) * 255;
+                    nImg.data[p + 1] = (dY * inv * 0.5 + 0.5) * 255;
+                    nImg.data[p + 2] = (dZ * inv) * 255;
+                    nImg.data[p + 3] = 255;
+                }
+            }
+            nCtx.putImageData(nImg, 0, 0);
+
+            const maxAniso = renderer.capabilities.getMaxAnisotropy();
+            const albedoMap = new THREE.CanvasTexture(albedoCanvas);
+            albedoMap.wrapS = albedoMap.wrapT = THREE.RepeatWrapping;
+            albedoMap.repeat.set(28, 28);
+            albedoMap.anisotropy = maxAniso;
+
+            const normalMap = new THREE.CanvasTexture(normCanvas);
+            normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
+            normalMap.repeat.set(28, 28);
+            normalMap.anisotropy = maxAniso;
+
+            return { albedoMap, normalMap };
+        }
+
+        /**
+         * Builds an articulated NASA VIPER / Lunar Terrain Vehicle 3D model
+         */
+        function buildNasaRover() {
+            roverGroup = new THREE.Group();
+
+            const goldMliMat = new THREE.MeshStandardMaterial({
+                color: 0xd4af37,
+                roughness: 0.32,
+                metalness: 0.82
+            });
+            const darkCarbonMat = new THREE.MeshStandardMaterial({
+                color: 0x1f232a,
+                roughness: 0.6,
+                metalness: 0.4
+            });
+            const whiteThermalMat = new THREE.MeshStandardMaterial({
+                color: 0xe5e7eb,
+                roughness: 0.5,
+                metalness: 0.1
+            });
+            const solarCellMat = new THREE.MeshStandardMaterial({
+                color: 0x10254c,
+                roughness: 0.25,
+                metalness: 0.65
+            });
+            const wheelMat = new THREE.MeshStandardMaterial({
+                color: 0x32363f,
+                roughness: 0.75,
+                metalness: 0.5
+            });
+
+            // 1. Main Gold MLI Thermal Chassis
+            const chassis = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.72, 1.85), goldMliMat);
+            chassis.position.y = 0.72;
+            chassis.castShadow = true;
+            chassis.receiveShadow = true;
+            roverGroup.add(chassis);
+
+            // Top Deck Instrument Plate
+            const deck = new THREE.Mesh(new THREE.BoxGeometry(1.42, 0.12, 1.92), whiteThermalMat);
+            deck.position.y = 1.12;
+            deck.castShadow = true;
+            roverGroup.add(deck);
+
+            // 2. Side Vertical Solar Array Wing
+            solarPanelGroup = new THREE.Group();
+            const panelFrame = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.35, 1.45), darkCarbonMat);
+            const panelCells = new THREE.Mesh(new THREE.BoxGeometry(0.09, 1.25, 1.35), solarCellMat);
+            solarPanelGroup.add(panelFrame, panelCells);
+            solarPanelGroup.position.set(0.72, 1.75, -0.05);
+            roverGroup.add(solarPanelGroup);
+
+            // 3. Camera & Navigation Mast + Stereo NavCam
+            mastGroup = new THREE.Group();
+            const mastPole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 1.05, 12), darkCarbonMat);
+            mastPole.position.y = 0.52;
+            const camHead = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.22, 0.26), whiteThermalMat);
+            camHead.position.y = 1.05;
+
+            const lensGeo = new THREE.CylinderGeometry(0.055, 0.055, 0.14, 12);
+            lensGeo.rotateX(Math.PI / 2);
+            const lensL = new THREE.Mesh(lensGeo, darkCarbonMat);
+            lensL.position.set(-0.12, 1.05, 0.12);
+            const lensR = new THREE.Mesh(lensGeo, darkCarbonMat);
+            lensR.position.set(0.12, 1.05, 0.12);
+
+            mastGroup.add(mastPole, camHead, lensL, lensR);
+            mastGroup.position.set(0, 1.15, 0.68);
+            roverGroup.add(mastGroup);
+
+            // High-Gain X-Band Dish Antenna
+            const dish = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.08, 0.15, 16), whiteThermalMat);
+            dish.rotation.x = -Math.PI / 4;
+            dish.position.set(-0.35, 1.35, -0.58);
+            roverGroup.add(dish);
+
+            // 4. Four Articulated Suspension Arms & Titanium Mesh Wheels
+            const wheelPositions = [
+                { x: -0.88, z:  0.76 },
+                { x:  0.88, z:  0.76 },
+                { x: -0.88, z: -0.76 },
+                { x:  0.88, z: -0.76 }
+            ];
+
+            const wheelGeo = new THREE.CylinderGeometry(0.38, 0.38, 0.28, 20);
+            wheelGeo.rotateZ(Math.PI / 2);
+            const hubGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.30, 12);
+            hubGeo.rotateZ(Math.PI / 2);
+
+            wheelPositions.forEach((pos) => {
+                const strut = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.12, 0.14), darkCarbonMat);
+                strut.position.set(pos.x * 0.78, 0.52, pos.z);
+                roverGroup.add(strut);
+
+                const wheelWrap = new THREE.Group();
+                const tire = new THREE.Mesh(wheelGeo, wheelMat);
+                tire.castShadow = true;
+                const hub = new THREE.Mesh(hubGeo, goldMliMat);
+                wheelWrap.add(tire, hub);
+                wheelWrap.position.set(pos.x, 0.38, pos.z);
+                roverGroup.add(wheelWrap);
+                roverWheels.push(wheelWrap);
+            });
+
+            // 5. Front LED Headlight (SpotLight)
+            roverSpotLight1 = new THREE.SpotLight(0xeef6ff, 2.8, 34, Math.PI / 4.5, 0.45, 1.2);
+            roverSpotLight1.position.set(0, 1.9, 0.8);
+            roverSpotLight1.target.position.set(0, 0.2, 8.5);
+            roverGroup.add(roverSpotLight1);
+            roverGroup.add(roverSpotLight1.target);
+
+            const bulbMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            const bulbL = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), bulbMat);
+            bulbL.position.set(-0.48, 0.92, 0.94);
+            const bulbR = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), bulbMat);
+            bulbR.position.set(0.48, 0.92, 0.94);
+            roverGroup.add(bulbL, bulbR);
+
+            // Waypoint target ring indicator
+            const ringGeo = new THREE.RingGeometry(0.6, 0.85, 24);
+            ringGeo.rotateX(-Math.PI / 2);
+            targetMarkerMesh = new THREE.Mesh(
+                ringGeo,
+                new THREE.MeshBasicMaterial({ color: 0x10b981, side: THREE.DoubleSide })
+            );
+            targetMarkerMesh.visible = false;
+            scene.add(targetMarkerMesh);
+
+            scene.add(roverGroup);
+        }
+
+        function buildWheelTracksSystem() {
+            wheelTrackGeo = new THREE.BufferGeometry();
+            const positions = new Float32Array(maxTracks * 3);
+            wheelTrackGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const trackMat = new THREE.PointsMaterial({
+                color: 0x18191e,
+                size: 0.28,
+                transparent: true,
+                opacity: 0.55
+            });
+            const trackPoints = new THREE.Points(wheelTrackGeo, trackMat);
+            scene.add(trackPoints);
+        }
+
+        function recordWheelTrack(x, y, z, heading) {
+            const cosH = Math.cos(heading);
+            const sinH = Math.sin(heading);
+            const offsets = [-0.88, 0.88];
+            offsets.forEach((off) => {
+                const wx = x + cosH * off;
+                const wz = z - sinH * off;
+                const wy = getTerrainHeight(wx, wz) + 0.05;
+                wheelTrackPositions.push(wx, wy, wz);
+                if (wheelTrackPositions.length > maxTracks * 3) {
+                    wheelTrackPositions.splice(0, 3);
+                }
+            });
+
+            const posAttr = wheelTrackGeo.attributes.position;
+            for (let i = 0; i < wheelTrackPositions.length; i++) {
+                posAttr.array[i] = wheelTrackPositions[i];
+            }
+            posAttr.needsUpdate = true;
+            wheelTrackGeo.setDrawRange(0, wheelTrackPositions.length / 3);
+        }
+
+        function buildLunarSky() {
+            const starCount = 5000;
+            const starVerts = new Float32Array(starCount * 3);
+            for (let i = 0; i < starCount; i++) {
+                const r = 450 + Math.random() * 400;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(Math.random());
+                starVerts[i * 3]     = r * Math.sin(phi) * Math.cos(theta);
+                starVerts[i * 3 + 1] = r * Math.cos(phi) + 10;
+                starVerts[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+            }
+            const starGeo = new THREE.BufferGeometry();
+            starGeo.setAttribute('position', new THREE.BufferAttribute(starVerts, 3));
+            const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 1.15, transparent: true, opacity: 0.8 });
+            scene.add(new THREE.Points(starGeo, starMat));
+
+            // Earth hanging low on the Lunar South Pole horizon
+            const earthGeo = new THREE.SphereGeometry(8.5, 32, 32);
+            const earthMat = new THREE.MeshStandardMaterial({
+                color: 0x2b65ec,
+                roughness: 0.6,
+                emissive: 0x0b1d48
+            });
+            const earthMesh = new THREE.Mesh(earthGeo, earthMat);
+            earthMesh.position.set(-180, 32, -280);
+            scene.add(earthMesh);
+        }
+
+        function updateSunLightPosition() {
+            const az = sunAzimuthDeg * (Math.PI / 180);
+            const el = sunElevationDeg * (Math.PI / 180);
+            const dist = 130;
+
+            const sx = dist * Math.cos(el) * Math.sin(az);
+            const sy = dist * Math.sin(el);
+            const sz = dist * Math.cos(el) * Math.cos(az);
+
+            sunLight.position.set(sx, sy, sz);
+        }
+
+        let trackStepCounter = 0;
+        function updateRoverKinematics() {
+            const prevX = roverState.x;
+            const prevZ = roverState.z;
+
+            if (driveMode === 'auto') {
+                roverState.autoAngle += 0.0022;
+                const targetRadius = CRATER_RADIUS * 1.03 + Math.sin(roverState.autoAngle * 3.0) * 1.2;
+                const nextX = Math.cos(roverState.autoAngle) * targetRadius;
+                const nextZ = Math.sin(roverState.autoAngle) * targetRadius;
+
+                const dx = nextX - roverState.x;
+                const dz = nextZ - roverState.z;
+                roverState.heading = Math.atan2(dx, dz);
+                roverState.x = nextX;
+                roverState.z = nextZ;
+            } else {
+                if (keys.w || keys.s || keys.a || keys.d) {
+                    roverState.targetX = null;
+                    targetMarkerMesh.visible = false;
+                    if (keys.a) roverState.heading += 0.035;
+                    if (keys.d) roverState.heading -= 0.035;
+                    const moveSpeed = keys.w ? 0.16 : (keys.s ? -0.11 : 0);
+                    roverState.x += Math.sin(roverState.heading) * moveSpeed;
+                    roverState.z += Math.cos(roverState.heading) * moveSpeed;
+                } else if (roverState.targetX !== null && roverState.targetZ !== null) {
+                    const dx = roverState.targetX - roverState.x;
+                    const dz = roverState.targetZ - roverState.z;
+                    const dist = Math.sqrt(dx * dx + dz * dz);
+                    if (dist > 0.45) {
+                        const desiredHeading = Math.atan2(dx, dz);
+                        let diff = desiredHeading - roverState.heading;
+                        while (diff > Math.PI) diff -= Math.PI * 2;
+                        while (diff < -Math.PI) diff += Math.PI * 2;
+                        roverState.heading += diff * 0.12;
+
+                        const step = Math.min(0.15, dist * 0.08);
+                        roverState.x += Math.sin(roverState.heading) * step;
+                        roverState.z += Math.cos(roverState.heading) * step;
+                    } else {
+                        roverState.targetX = null;
+                        targetMarkerMesh.visible = false;
+                    }
+                }
+            }
+
+            const bound = WORLD_SIZE * 0.46;
+            roverState.x = Math.max(-bound, Math.min(bound, roverState.x));
+            roverState.z = Math.max(-bound, Math.min(bound, roverState.z));
+            roverState.y = getTerrainHeight(roverState.x, roverState.z);
+
+            roverGroup.position.set(roverState.x, roverState.y, roverState.z);
+
+            const surfaceNormal = getTerrainNormal(roverState.x, roverState.z);
+            const forward = new THREE.Vector3(Math.sin(roverState.heading), 0, Math.cos(roverState.heading));
+            const right = new THREE.Vector3().crossVectors(surfaceNormal, forward).normalize();
+            const alignedForward = new THREE.Vector3().crossVectors(right, surfaceNormal).normalize();
+
+            const rotMatrix = new THREE.Matrix4().makeBasis(right, surfaceNormal, alignedForward);
+            roverGroup.quaternion.setFromRotationMatrix(rotMatrix);
+
+            const distMoved = Math.hypot(roverState.x - prevX, roverState.z - prevZ);
+            if (distMoved > 0.001) {
+                roverState.wheelRot += distMoved / 0.38;
+                roverWheels.forEach((w) => {
+                    w.children[0].rotation.x = roverState.wheelRot;
+                });
+
+                trackStepCounter++;
+                if (trackStepCounter % 4 === 0) {
+                    recordWheelTrack(roverState.x, roverState.y, roverState.z, roverState.heading);
+                }
+            }
+
+            updateRoverTelemetryUI();
+        }
+
+        function updateRoverTelemetryUI() {
+            const elevMeters = Math.round(roverState.y * 520);
+            const slopeDeg = getSlopeDegrees(roverState.x, roverState.z);
+            const tempK = getSurfaceTemperatureKelvin(roverState.x, roverState.z, roverState.y, slopeDeg);
+            const tempC = tempK - 273;
+
+            document.getElementById('rover-elev').textContent = (elevMeters >= 0 ? "+" : "") + elevMeters + " m";
+            document.getElementById('rover-slope').textContent = slopeDeg.toFixed(1) + "°";
+            document.getElementById('rover-temp').textContent = tempC + "°C (" + tempK + "K)";
+
+            const badge = document.getElementById('rover-status-badge');
+            const powerEl = document.getElementById('rover-power');
+            const r = Math.hypot(roverState.x, roverState.z);
+
+            if (r < CRATER_RADIUS * 0.82 && roverState.y < -1.5) {
+                badge.className = "status-badge status-warn";
+                badge.textContent = "داخل الظل الدائم (PSR - 40K)";
+                powerEl.textContent = "بطارية داخلية (ظل دائم)";
+            } else if (slopeDeg > 18.0) {
+                badge.className = "status-badge status-danger";
+                badge.textContent = "تحذير: منحدر حرج (>18°)";
+                powerEl.textContent = "88% (استهلاك مرتفع)";
+            } else {
+                badge.className = "status-badge status-safe";
+                badge.textContent = "جاري الاستكشاف الآمن";
+                powerEl.textContent = "96% (إضاءة شمسية قطبية)";
+            }
+        }
+
+        function updateCameraMode() {
+            if (cameraMode === 'follow') {
+                const offset = new THREE.Vector3(
+                    -Math.sin(roverState.heading) * 9.5,
+                    4.8,
+                    -Math.cos(roverState.heading) * 9.5
+                );
+                const desiredPos = roverGroup.position.clone().add(offset);
+                camera.position.lerp(desiredPos, 0.08);
+                controls.target.lerp(roverGroup.position.clone().add(new THREE.Vector3(0, 1.2, 0)), 0.12);
+                controls.update();
+            } else if (cameraMode === 'pov') {
+                const camWorldPos = roverGroup.position.clone().add(new THREE.Vector3(0, 2.35, 0));
+                const lookTarget = roverGroup.position.clone().add(
+                    new THREE.Vector3(
+                        Math.sin(roverState.heading) * 14,
+                        0.5,
+                        Math.cos(roverState.heading) * 14
+                    )
+                );
+                camera.position.copy(camWorldPos);
+                camera.lookAt(lookTarget);
+            } else if (cameraMode === 'top') {
+                const topPos = new THREE.Vector3(0, 92, 0.01);
+                camera.position.lerp(topPos, 0.08);
+                controls.target.lerp(new THREE.Vector3(0, 0, 0), 0.1);
+                controls.update();
+            } else {
+                controls.update();
+            }
+        }
+
+        function createLandmarkMarkers() {
+            const container = document.getElementById('waypoints-layer');
+            landmarks.forEach((lm) => {
+                const el = document.createElement('div');
+                el.className = 'waypoint-label';
+                el.innerHTML = `<span class="waypoint-dot"></span>${lm.name}`;
+                el.title = lm.desc;
+                el.addEventListener('click', () => {
+                    dispatchRoverTo(lm.x, lm.z);
+                });
+                container.appendChild(el);
+                landmarkElements.push({ data: lm, el: el });
+            });
+        }
+
+        function updateLandmarkScreenPositions() {
+            const halfW = window.innerWidth / 2;
+            const halfH = window.innerHeight / 2;
+
+            landmarkElements.forEach((item) => {
+                const y = getTerrainHeight(item.data.x, item.data.z) + 1.4;
+                const vec = new THREE.Vector3(item.data.x, y, item.data.z);
+                vec.project(camera);
+
+                if (vec.z > 1.0) {
+                    item.el.style.display = 'none';
+                } else {
+                    item.el.style.display = 'block';
+                    const sx = (vec.x * halfW) + halfW;
+                    const sy = -(vec.y * halfH) + halfH;
+                    item.el.style.left = sx + 'px';
+                    item.el.style.top = sy + 'px';
+                }
+            });
+        }
+
+        function switchDataLayer(layerName) {
+            activeDataLayer = layerName;
+            const colorAttr = terrainGeo.attributes.color;
+            const legendBox = document.getElementById('legend-container');
+            const legendGrad = document.getElementById('legend-gradient');
+            const legendLabels = document.getElementById('legend-labels');
+
+            if (layerName === 'photoreal') {
+                colorAttr.array.set(vertexColorsPhotoreal);
+                legendBox.style.display = 'none';
+            } else if (layerName === 'thermal') {
+                colorAttr.array.set(vertexColorsThermal);
+                legendBox.style.display = 'block';
+                legendGrad.style.background = 'linear-gradient(90deg, #291f94, #0d8cd9, #2ec761, #f5c71f, #eb3326)';
+                legendLabels.innerHTML = '<span>40K (-233°C)</span><span>130K (-143°C)</span><span>220K (-53°C)</span>';
+            } else if (layerName === 'slope') {
+                colorAttr.array.set(vertexColorsSlope);
+                legendBox.style.display = 'block';
+                legendGrad.style.background = 'linear-gradient(90deg, #1fb873, #f59e0b, #ef4444)';
+                legendLabels.innerHTML = '<span>0° - 10° (آمن)</span><span>10° - 20° (حذر)</span><span>> 20° (خطر)</span>';
+            } else if (layerName === 'ice') {
+                colorAttr.array.set(vertexColorsIce);
+                legendBox.style.display = 'block';
+                legendGrad.style.background = 'linear-gradient(90deg, #555860, #0ea5e9, #38bdf8)';
+                legendLabels.innerHTML = '<span>تربة جافة</span><span>ظل دائم (PSR)</span><span>تركيز جليد 2 wt%</span>';
+            }
+            colorAttr.needsUpdate = true;
+        }
+
+        function dispatchRoverTo(tx, tz) {
+            driveMode = 'manual';
+            document.getElementById('mode-manual').classList.add('active');
+            document.getElementById('mode-auto').classList.remove('active');
+
+            roverState.targetX = tx;
+            roverState.targetZ = tz;
+            const ty = getTerrainHeight(tx, tz);
+            targetMarkerMesh.position.set(tx, ty + 0.15, tz);
+            targetMarkerMesh.visible = true;
+        }
+
+        function setupUIEvents() {
+            document.getElementById('dataLayerSelect').addEventListener('change', (e) => {
+                switchDataLayer(e.target.value);
+            });
+
+            const camBtns = document.querySelectorAll('.cam-btn');
+            camBtns.forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    camBtns.forEach((b) => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    cameraMode = btn.getAttribute('data-cam');
+                    controls.enabled = (cameraMode === 'orbit' || cameraMode === 'top');
+                });
+            });
+
+            const btnAuto = document.getElementById('mode-auto');
+            const btnManual = document.getElementById('mode-manual');
+
+            btnAuto.addEventListener('click', () => {
+                driveMode = 'auto';
+                btnAuto.classList.add('active');
+                btnManual.classList.remove('active');
+                targetMarkerMesh.visible = false;
+            });
+
+            btnManual.addEventListener('click', () => {
+                driveMode = 'manual';
+                btnManual.classList.add('active');
+                btnAuto.classList.remove('active');
+            });
+
+            const azSlider = document.getElementById('sunAzimuth');
+            const elSlider = document.getElementById('sunElevation');
+
+            azSlider.addEventListener('input', (e) => {
+                sunAzimuthDeg = parseFloat(e.target.value);
+                document.getElementById('sunAzVal').textContent = sunAzimuthDeg + '°';
+                updateSunLightPosition();
+            });
+
+            elSlider.addEventListener('input', (e) => {
+                sunElevationDeg = parseFloat(e.target.value);
+                document.getElementById('sunElVal').textContent = sunElevationDeg + '°';
+                updateSunLightPosition();
+            });
+
+            document.getElementById('roverLightsToggle').addEventListener('change', (e) => {
+                roverSpotLight1.intensity = e.target.checked ? 2.8 : 0.0;
+            });
+
+            document.querySelectorAll('.site-btn').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    const sx = parseFloat(btn.getAttribute('data-x'));
+                    const sz = parseFloat(btn.getAttribute('data-z'));
+                    dispatchRoverTo(sx, sz);
+                });
+            });
+
+            window.addEventListener('keydown', (e) => {
+                const k = e.key.toLowerCase();
+                if (k === 'w' || e.key === 'ArrowUp')    { keys.w = true; switchToManualUI(); }
+                if (k === 's' || e.key === 'ArrowDown')  { keys.s = true; switchToManualUI(); }
+                if (k === 'a' || e.key === 'ArrowLeft')  { keys.a = true; switchToManualUI(); }
+                if (k === 'd' || e.key === 'ArrowRight') { keys.d = true; switchToManualUI(); }
+            });
+
+            window.addEventListener('keyup', (e) => {
+                const k = e.key.toLowerCase();
+                if (k === 'w' || e.key === 'ArrowUp')    keys.w = false;
+                if (k === 's' || e.key === 'ArrowDown')  keys.s = false;
+                if (k === 'a' || e.key === 'ArrowLeft')  keys.a = false;
+                if (k === 'd' || e.key === 'ArrowRight') keys.d = false;
+            });
+
+            let pointerDownPos = { x: 0, y: 0 };
+            renderer.domElement.addEventListener('pointerdown', (e) => {
+                pointerDownPos = { x: e.clientX, y: e.clientY };
+            });
+
+            renderer.domElement.addEventListener('pointerup', (e) => {
+                const moveDist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
+                if (moveDist < 5 && e.button === 0) {
+                    const hit = raycastTerrain(e.clientX, e.clientY);
+                    if (hit) {
+                        dispatchRoverTo(hit.point.x, hit.point.z);
+                    }
+                }
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                const hit = raycastTerrain(e.clientX, e.clientY);
+                if (hit) {
+                    const px = hit.point.x;
+                    const py = hit.point.y;
+                    const pz = hit.point.z;
+                    const slope = getSlopeDegrees(px, pz);
+                    const tempK = getSurfaceTemperatureKelvin(px, pz, py, slope);
+                    const tempC = tempK - 273;
+                    const elevM = Math.round(py * 520);
+
+                    const distFromPole = Math.hypot(px, pz) / 180.0;
+                    const lat = (90.0 - distFromPole).toFixed(2);
+                    const lon = (Math.atan2(px, pz) * (180 / Math.PI)).toFixed(1);
+
+                    document.getElementById('inspect-coords').textContent = `${lat}° S, ${lon}° E`;
+                    document.getElementById('inspect-elev').textContent = (elevM >= 0 ? "+" : "") + elevM + " m";
+                    document.getElementById('inspect-slope').textContent = slope.toFixed(1) + "°";
+                    document.getElementById('inspect-temp').textContent = `${tempC}°C (${tempK}K)`;
+
+                    const safetyEl = document.getElementById('cursor-safety');
+                    if (slope < 10.0) {
+                        safetyEl.className = "status-badge status-safe";
+                        safetyEl.textContent = "آمن للهبوط (<10°)";
+                    } else if (slope < 18.5) {
+                        safetyEl.className = "status-badge status-warn";
+                        safetyEl.textContent = "انحدار متوسط";
+                    } else {
+                        safetyEl.className = "status-badge status-danger";
+                        safetyEl.textContent = "خطر انزلاق (>18°)";
+                    }
+                }
+            });
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+
+        function switchToManualUI() {
+            if (driveMode !== 'manual') {
+                driveMode = 'manual';
+                document.getElementById('mode-manual').classList.add('active');
+                document.getElementById('mode-auto').classList.remove('active');
+            }
+        }
+
+        function raycastTerrain(clientX, clientY) {
+            mouse.x = (clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const hits = raycaster.intersectObject(terrainMesh);
+            return hits.length > 0 ? hits[0] : null;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            updateRoverKinematics();
+            updateCameraMode();
+            updateLandmarkScreenPositions();
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
