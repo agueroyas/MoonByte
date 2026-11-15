@@ -26,6 +26,11 @@ async function loadDem() {
     const response = await fetch('/api/dem'); const data = await response.json(); if (!response.ok) throw new Error(data.error || 'NASA download failed');
     state.dem = data; drawTerrain(data); $('demState').textContent = 'NASA DATA LOADED';
     const s = data.statistics; $('terrainStats').innerHTML = `<div><span>DIMENSIONS</span><b>${data.metadata.width.toLocaleString()} × ${data.metadata.height.toLocaleString()}</b></div><div><span>VALID PIXELS</span><b>${s.valid_pixel_count.toLocaleString()}</b></div><div><span>STORED VALUE RANGE</span><b>${s.min} / ${s.median} / ${s.max}</b></div><div><span>SHA-256</span><b class="hash">${data.sha256}</b></div>`;
+    document.querySelector('.metadata-details')?.remove();
+    const details = document.createElement('details'); details.className = 'metadata-details';
+    const summary = document.createElement('summary'); summary.textContent = 'View complete GeoTIFF metadata & CRS';
+    const preview = document.createElement('pre'); preview.textContent = JSON.stringify(data.metadata, null, 2);
+    details.append(summary, preview); $('terrainStats').after(details);
     setStatus('DEM ANALYZED'); toast(`NASA DEM loaded · ${data.size_mib} MiB · SHA-256 recorded`);
   } catch (error) { $('demState').textContent = 'FETCH FAILED'; setStatus('SOURCE UNAVAILABLE'); toast(error.message); }
   finally { setBusy(button, false); }
@@ -38,6 +43,11 @@ async function fetchHorizons() {
     state.horizons = data;
     $('sunState').textContent = 'RECORDS RECEIVED'; $('sunRows').textContent = `${data.sun.row_count} rows`;
     $('earthState').textContent = 'RECORDS RECEIVED'; $('earthRows').textContent = `${data.earth.row_count} rows`;
+    for (const [target, value] of [['sun', data.sun], ['earth', data.earth]]) {
+      document.querySelector(`.ephem-preview[data-target="${target}"]`)?.remove();
+      const preview = document.createElement('pre'); preview.className = 'ephem-preview'; preview.dataset.target = target; preview.textContent = value.rows.join('\n');
+      $(`${target}Rows`).closest('.target').after(preview);
+    }
     setStatus('EPHEMERIS RECEIVED'); toast(`JPL Horizons returned ${data.sun.row_count} Sun and ${data.earth.row_count} Earth records`);
   } catch (error) { $('sunState').textContent = 'REQUEST FAILED'; $('earthState').textContent = 'REQUEST FAILED'; toast(error.message); setStatus('HORIZONS UNAVAILABLE'); }
   finally { setBusy(button, false); }
