@@ -45,6 +45,15 @@ async function fetchHorizons() {
 async function exportArchive() {
   if (!state.dem && !state.horizons) return toast('Fetch the NASA DEM or JPL ephemeris first to create an output archive.');
   const zip = new JSZip(); const rawFiles = [];
+  if (state.dem) {
+    toast('Downloading the original NASA GeoTIFF for the archive…');
+    const response = await fetch('/api/dem-file'); if (!response.ok) { const error = await response.json().catch(() => ({})); throw new Error(error.error || 'Could not download the NASA GeoTIFF'); }
+    const demBlob = await response.blob();
+    const digest = await crypto.subtle.digest('SHA-256', await demBlob.arrayBuffer());
+    const hash = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+    if (hash !== state.dem.sha256) throw new Error('The downloaded GeoTIFF SHA-256 does not match the analyzed DEM');
+    zip.file(state.dem.filename, demBlob); rawFiles.push(state.dem.filename);
+  }
   if (state.horizons) { zip.file('horizons_sun_raw.txt', state.horizons.sun.raw); zip.file('horizons_earth_raw.txt', state.horizons.earth.raw); rawFiles.push('horizons_sun_raw.txt', 'horizons_earth_raw.txt'); }
   const provenance = {
     project: 'ARTEMIS PRISM', test_version: '0.1', generated_at_utc: new Date().toISOString(),
@@ -58,6 +67,6 @@ async function exportArchive() {
 $('loadDem').addEventListener('click', loadDem); $('fetchHorizons').addEventListener('click', fetchHorizons); $('runAll').addEventListener('click', async () => { setStatus('RUNNING ANALYSIS'); await Promise.all([loadDem(), fetchHorizons()]); });
 $('langBtn').addEventListener('click', () => toast('English interface · Arabic control is available for the next release.'));
 setInterval(() => { $('clock').textContent = `UTC ${new Date().toISOString().slice(11, 19)}`; }, 1000);
-const exportButton = document.createElement('button'); exportButton.className = 'smallbtn'; exportButton.textContent = '↓ Export ZIP'; exportButton.addEventListener('click', exportArchive); $('provenance').querySelector('.panel-head').appendChild(exportButton);
+const exportButton = document.createElement('button'); exportButton.className = 'smallbtn'; exportButton.textContent = '↓ Export ZIP'; exportButton.addEventListener('click', () => exportArchive().catch(error => toast(error.message))); $('provenance').querySelector('.panel-head').appendChild(exportButton);
 const canvas = $('terrainMap').getContext('2d'); const gradient = canvas.createLinearGradient(0, 0, 0, 370); gradient.addColorStop(0, '#1b2b32'); gradient.addColorStop(.5, '#26373c'); gradient.addColorStop(1, '#111922'); canvas.fillStyle = gradient; canvas.fillRect(0, 0, 860, 370); canvas.strokeStyle = '#81938416'; for (let x = 0; x < 860; x += 24) { canvas.beginPath(); canvas.moveTo(x, 0); canvas.lineTo(x + 120, 370); canvas.stroke(); }
 
