@@ -19,5 +19,8 @@
     "threejs"
   ],
   "author": "MoonByte Team",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "geotiff": "^2.1.3"
+  }
 }
