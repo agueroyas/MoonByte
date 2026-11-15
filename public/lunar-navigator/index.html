@@ -715,10 +715,6 @@
             { x: -18, z: -8,  r: 2.2, depth: 0.48 }
         ];
 
-        // Initialize only after every terrain dataset has been defined.
-        init();
-        animate();
-
         /**
          * Exact Mathematical Model of Shackleton Crater LOLA DEM
          */
@@ -1198,6 +1194,10 @@
         }
 
         let trackStepCounter = 0;
+
+        // Start rendering after all shared state has been initialized.
+        init();
+        animate();
         function updateRoverKinematics() {
             const prevX = roverState.x;
             const prevZ = roverState.z;
