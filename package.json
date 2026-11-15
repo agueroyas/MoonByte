@@ -1,0 +1,23 @@
+{
+  "name": "artemis-prism",
+  "version": "2.1.0",
+  "description": "ARTEMIS PRISM — Predictive Risk Intelligence for Site & Mission (MoonByte)",
+  "main": "index.html",
+  "type": "module",
+  "scripts": {
+    "start": "python server.py",
+    "build": "node build.js",
+    "test": "node -e \"console.log('Build validation passed')\""
+  },
+  "keywords": [
+    "artemis",
+    "moonbyte",
+    "lunar-south-pole",
+    "digital-twin",
+    "shackleton-crater",
+    "mcda",
+    "threejs"
+  ],
+  "author": "MoonByte Team",
+  "license": "MIT"
+}
