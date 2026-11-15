@@ -590,9 +590,6 @@
         ];
         let landmarkElements = [];
 
-        init();
-        animate();
-
         function init() {
             const container = document.getElementById('canvas-container');
 
@@ -717,6 +714,10 @@
             { x: 19,  z: 10,  r: 2.6, depth: 0.55 },
             { x: -18, z: -8,  r: 2.2, depth: 0.48 }
         ];
+
+        // Initialize only after every terrain dataset has been defined.
+        init();
+        animate();
 
         /**
          * Exact Mathematical Model of Shackleton Crater LOLA DEM
